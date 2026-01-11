@@ -1,38 +1,120 @@
 #include <iostream>
+#include <fstream>
+#include <string>
 using namespace std;
 
-// Base class
+// ================= Base Class =================
 class User {
 protected:
     string name;
     int id;
 
 public:
-    void setUser(string n, int i) {
-        name = n;
-        id = i;
-    }
+    void setName(string n) { name = n; }
+    void setID(int i) { id = i; }
 
-    virtual void vote() = 0;   // Abstraction (pure virtual function)
+    string getName() { return name; }
+    int getID() { return id; }
+
+    virtual void vote() = 0;
 
     virtual void display() {
         cout << "Name: " << name << endl;
         cout << "ID: " << id << endl;
     }
+
+    virtual ~User() {}
 };
 
-// Derived class: Voter
+// ================= Voter Class =================
 class Voter : public User {
 private:
-    static int votes[3];   // Encapsulation
+    static int votes[3];
+    int age;
     bool hasVoted;
 
 public:
     Voter() {
+        age = 0;
         hasVoted = false;
     }
 
-    void vote() {   // Polymorphism
+    // -------- Setters / Getters --------
+    void setAge(int a) { age = a; }
+    int getAge() { return age; }
+
+    // -------- Vote File Handling --------
+    static void loadVotes() {
+        ifstream fin("votes.txt");
+        if (fin) {
+            fin >> votes[0] >> votes[1] >> votes[2];
+        }
+        fin.close();
+    }
+
+    static void saveVotes() {
+        ofstream fout("votes.txt");
+        fout << votes[0] << " " << votes[1] << " " << votes[2];
+        fout.close();
+    }
+
+    // -------- Voter Record Handling --------
+    bool checkVoterRecord() {
+        ifstream fin("voters.txt");
+        int fid, fage, voted;
+        string fname;
+
+        while (fin >> fid >> fname >> fage >> voted) {
+            if (fid == id) {
+                name = fname;
+                age = fage;
+                hasVoted = voted;
+                fin.close();
+                return true;
+            }
+        }
+        fin.close();
+        return false;
+    }
+
+    void saveVoterRecord() {
+        ofstream fout("voters.txt", ios::app);
+        fout << id << " " << name << " " << age << " " << hasVoted << endl;
+        fout.close();
+    }
+
+    void updateVoterStatus() {
+        ifstream fin("voters.txt");
+        ofstream fout("temp.txt");
+
+        int fid, fage, voted;
+        string fname;
+
+        while (fin >> fid >> fname >> fage >> voted) {
+            if (fid == id)
+                fout << fid << " " << fname << " " << fage << " 1\n";
+            else
+                fout << fid << " " << fname << " " << fage << " " << voted << "\n";
+        }
+
+        fin.close();
+        fout.close();
+
+        remove("voters.txt");
+        rename("temp.txt", "voters.txt");
+    }
+
+    bool isEligible() {
+        return age >= 18;
+    }
+
+    // -------- Voting --------
+    void vote() override {
+        if (!isEligible()) {
+            cout << "You are not eligible to vote (Age < 18).\n";
+            return;
+        }
+
         if (hasVoted) {
             cout << "You have already voted!\n";
             return;
@@ -49,6 +131,8 @@ public:
         if (choice >= 1 && choice <= 3) {
             votes[choice - 1]++;
             hasVoted = true;
+            saveVotes();
+            updateVoterStatus();
             cout << "Vote submitted successfully!\n";
         } else {
             cout << "Invalid choice!\n";
@@ -63,60 +147,93 @@ public:
     }
 };
 
-// Static member initialization
+// Static initialization
 int Voter::votes[3] = {0, 0, 0};
 
-// Derived class: Admin
+// ================= Admin Class =================
 class Admin : public User {
 public:
-    void vote() {   // Polymorphism
-        cout << "\nAdmin cannot vote.\n";
+    void vote() override {
+        cout << "Admin cannot vote.\n";
     }
 
     void viewResults() {
         Voter::showVotes();
     }
+
+    void viewVoters() {
+        ifstream fin("voters.txt");
+        int id, age, voted;
+        string name;
+
+        cout << "\n--- Registered Voters ---\n";
+        while (fin >> id >> name >> age >> voted) {
+            cout << "ID: " << id
+                 << " | Name: " << name
+                 << " | Age: " << age
+                 << " | Status: " << (voted ? "Voted" : "Not Voted") << endl;
+        }
+        fin.close();
+    }
 };
 
+// ================= Main Function =================
 int main() {
+    Voter::loadVotes();
+
     int choice;
-    cout << "Online Voting System (Simulation)\n";
-    cout << "1. Voter\n";
-    cout << "2. Admin\n";
-    cout << "Enter choice: ";
-    cin >> choice;
+    do {
+        cout << "\n===== Online Voting System =====\n";
+        cout << "1. Voter Login\n";
+        cout << "2. Admin Login\n";
+        cout << "3. Exit\n";
+        cout << "Enter choice: ";
+        cin >> choice;
 
-    if (choice == 1) {
-        Voter v;
-        string name;
-        int id;
+        if (choice == 1) {
+            Voter v;
+            int vid, age;
+            string name;
 
-        cout << "Enter voter name: ";
-        cin >> name;
-        cout << "Enter voter ID: ";
-        cin >> id;
+            cout << "Enter Voter ID: ";
+            cin >> vid;
+            v.setID(vid);
 
-        v.setUser(name, id);
-        v.display();
-        v.vote();
-    }
-    else if (choice == 2) {
-        Admin a;
-        string name;
-        int id;
+            if (!v.checkVoterRecord()) {
+                cout << "New Voter Registration\n";
+                cout << "Enter Name: ";
+                cin >> name;
+                cout << "Enter Age: ";
+                cin >> age;
 
-        cout << "Enter admin name: ";
-        cin >> name;
-        cout << "Enter admin ID: ";
-        cin >> id;
+                v.setName(name);
+                v.setAge(age);
+                v.saveVoterRecord();
+            }
 
-        a.setUser(name, id);
-        a.display();
-        a.viewResults();
-    }
-    else {
-        cout << "Invalid option!";
-    }
+            v.display();
+            v.vote();
+        }
+        else if (choice == 2) {
+            Admin a;
+            string name;
+            int id;
 
+            cout << "Enter Admin Name: ";
+            cin >> name;
+            cout << "Enter Admin ID: ";
+            cin >> id;
+
+            a.setName(name);
+            a.setID(id);
+
+            a.display();
+            a.viewResults();
+            a.viewVoters();
+        }
+
+    } while (choice != 3);
+
+    cout << "Exiting system...\n";
     return 0;
 }
