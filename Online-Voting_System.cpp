@@ -13,9 +13,6 @@ public:
     void setName(string n) { name = n; }
     void setID(int i) { id = i; }
 
-    string getName() { return name; }
-    int getID() { return id; }
-
     virtual void vote() = 0;
 
     virtual void display() {
@@ -29,7 +26,7 @@ public:
 // ================= Voter Class =================
 class Voter : public User {
 private:
-    static int votes[3];
+    static int votes[4];
     int age;
     bool hasVoted;
 
@@ -39,22 +36,20 @@ public:
         hasVoted = false;
     }
 
-    // -------- Setters / Getters --------
     void setAge(int a) { age = a; }
-    int getAge() { return age; }
 
     // -------- Vote File Handling --------
     static void loadVotes() {
         ifstream fin("votes.txt");
-        if (fin) {
-            fin >> votes[0] >> votes[1] >> votes[2];
-        }
+        if (fin)
+            fin >> votes[0] >> votes[1] >> votes[2] >> votes[3];
         fin.close();
     }
 
     static void saveVotes() {
         ofstream fout("votes.txt");
-        fout << votes[0] << " " << votes[1] << " " << votes[2];
+        fout << votes[0] << " " << votes[1] << " "
+             << votes[2] << " " << votes[3];
         fout.close();
     }
 
@@ -111,7 +106,7 @@ public:
     // -------- Voting --------
     void vote() override {
         if (!isEligible()) {
-            cout << "You are not eligible to vote (Age < 18).\n";
+            cout << "Not eligible to vote (Age < 18)\n";
             return;
         }
 
@@ -125,10 +120,11 @@ public:
         cout << "1. Candidate A\n";
         cout << "2. Candidate B\n";
         cout << "3. Candidate C\n";
+        cout << "4. Candidate D\n";
         cout << "Enter choice: ";
         cin >> choice;
 
-        if (choice >= 1 && choice <= 3) {
+        if (choice >= 1 && choice <= 4) {
             votes[choice - 1]++;
             hasVoted = true;
             saveVotes();
@@ -144,11 +140,29 @@ public:
         cout << "Candidate A: " << votes[0] << endl;
         cout << "Candidate B: " << votes[1] << endl;
         cout << "Candidate C: " << votes[2] << endl;
+        cout << "Candidate D: " << votes[3] << endl;
+    }
+
+    // ===== Feature 2: Winner =====
+    static void showWinner() {
+        int maxVotes = votes[0];
+        int winner = 0;
+
+        for (int i = 1; i < 4; i++) {
+            if (votes[i] > maxVotes) {
+                maxVotes = votes[i];
+                winner = i;
+            }
+        }
+
+        cout << "\nWinner: Candidate "
+             << char('A' + winner)
+             << " with " << maxVotes << " votes\n";
     }
 };
 
-// Static initialization
-int Voter::votes[3] = {0, 0, 0};
+// Static Initialization
+int Voter::votes[4] = {0, 0, 0, 0};
 
 // ================= Admin Class =================
 class Admin : public User {
@@ -159,6 +173,7 @@ public:
 
     void viewResults() {
         Voter::showVotes();
+        Voter::showWinner();  
     }
 
     void viewVoters() {
@@ -177,11 +192,13 @@ public:
     }
 };
 
-// ================= Main Function =================
+// ================= Main =================
 int main() {
     Voter::loadVotes();
 
+    const string ADMIN_PASS = "1234";
     int choice;
+
     do {
         cout << "\n===== Online Voting System =====\n";
         cout << "1. Voter Login\n";
@@ -215,6 +232,15 @@ int main() {
             v.vote();
         }
         else if (choice == 2) {
+            string pass;
+            cout << "Enter Admin Password: ";
+            cin >> pass;
+
+            if (pass != ADMIN_PASS) {
+                cout << "Wrong password! Access denied.\n";
+                continue;
+            }
+
             Admin a;
             string name;
             int id;
@@ -234,6 +260,5 @@ int main() {
 
     } while (choice != 3);
 
-    cout << "Exiting system...\n";
     return 0;
 }
