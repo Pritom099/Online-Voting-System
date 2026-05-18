@@ -38,4 +38,4 @@ Program automatically creates/uses:
 
 ### 1. Clone or Download
 ```bash
-git clone <https://github.com/Pritom099/Online-Voting-System.git>
+git clone https://github.com/Pritom099/Online-Voting-System.git
